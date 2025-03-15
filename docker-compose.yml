@@ -1,25 +1,86 @@
-version: "3.7"
+version: '3.8'
+
 services:
   postgres:
     image: postgres:14
+    container_name: transactions_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: transactions
     ports:
       - "5432:5432"
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+    networks:
+      - app-network
+
   zookeeper:
-    image: confluentinc/cp-zookeeper:5.5.3
+    image: bitnami/zookeeper:latest
+    container_name: zookeeper
     environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-  kafka:
-    image: confluentinc/cp-enterprise-kafka:5.5.3
-    depends_on: [zookeeper]
-    environment:
-      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_BROKER_ID: 1
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_JMX_PORT: 9991
+      ALLOW_ANONYMOUS_LOGIN: "yes"
     ports:
-      - 9092:9092
+      - "2181:2181"
+    networks:
+      - app-network
+
+  kafka:
+    image: bitnami/kafka:latest
+    container_name: kafka
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_CFG_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_CFG_LISTENERS: "PLAINTEXT://:9092"
+      KAFKA_CFG_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_CFG_UNCLEAN_LEADER_ELECTION_ENABLE: "false"
+      KAFKA_CFG_MIN_INSYNC_REPLICAS: "1"
+      KAFKA_CFG_DEFAULT_REPLICATION_FACTOR: "1"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    networks:
+      - app-network
+
+  antifraude-service:
+    build: ./antifraude-service
+    container_name: antifraude-service
+    depends_on:
+      - kafka
+    environment:
+      DATABASE_HOST: transactions_db
+      DATABASE_PORT: 5432
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+      DATABASE_NAME: transactions
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_CLIENT_ID: antifraude-service
+      KAFKA_GROUP_ID: antifraude-consumer
+      KAFKA_TOPIC: transactions
+    networks:
+      - app-network
+
+  api-transacciones:
+    build: ./api-transacciones
+    container_name: api-transacciones
+    depends_on:
+      - kafka
+      - postgres
+    environment:
+      DATABASE_HOST: transactions_db
+      DATABASE_PORT: 5432
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+      DATABASE_NAME: transactions
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_CLIENT_ID: api-transacciones-client
+      KAFKA_GROUP_ID: transactions-consumer
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

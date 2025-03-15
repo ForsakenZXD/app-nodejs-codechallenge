@@ -1,0 +1,43 @@
+1 Verificar contenedores
+
+docker ps
+
+3 Listar los topics de Kafka
+
+docker exec -it kafka kafka-topics.sh --bootstrap-server kafka:9092 --list
+
+4 Crear un topic en Kafka
+
+docker exec -it kafka kafka-topics.sh --bootstrap-server kafka:9092 --create --topic transactions --partitions 1 --replication-factor 1
+
+5 Ver detalles de un topic en Kafka
+
+docker exec -it kafka kafka-topics.sh --bootstrap-server kafka:9092 --describe --topic transactions
+
+6 Escuchar mensajes de un topic en Kafka
+
+docker exec -it kafka kafka-console-consumer.sh --bootstrap-server kafka:9092 --topic transactions --from-beginning
+
+7 Enviar un mensaje manualmente a un topic
+
+docker exec -it kafka kafka-console-producer.sh --bootstrap-server kafka:9092 --topic transactions
+
+8 Ingresar a la base de datos (PostgreSQL)
+
+docker exec -it transactions_db psql -U postgres
+
+9 Lista de BD
+
+\l
+
+10 Conectarse a la BD 
+
+\c transactions
+
+11 Listar Tablas de la BD
+
+\dt
+
+12 Reiniciar todo
+
+docker-compose down && docker-compose build --no-cache && docker-compose up -d
